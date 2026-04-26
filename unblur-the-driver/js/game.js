@@ -328,6 +328,10 @@ searchInput.addEventListener('input', () => {
     });
   }
   dropdown.className = 'dropdown open';
+  const rect = searchInput.getBoundingClientRect();
+  dropdown.style.top = (rect.bottom + 4) + 'px';
+  dropdown.style.left = rect.left + 'px';
+  dropdown.style.width = rect.width + 'px';
 });
 
 document.addEventListener('click', (e) => {
