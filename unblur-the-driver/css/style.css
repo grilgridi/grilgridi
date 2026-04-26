@@ -39,7 +39,10 @@ html, body {
   color: var(--ivory);
   font-family: 'Teko', sans-serif;
   overflow-x: hidden;
+  overflow-y: hidden;
 }
+body::-webkit-scrollbar { display: none; }
+body { -ms-overflow-style: none; scrollbar-width: none; }
 
 body::after {
   content: '';
