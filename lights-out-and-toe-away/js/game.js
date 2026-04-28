@@ -1,28 +1,22 @@
-// Lights Out & Toe Away — Core Game Logic
-
 const BEST_OF = 5;
-const WIN_TARGET = 3; // first to 3 rounds wins series
+const WIN_TARGET = 3; 
 const TURN_TIME = 60;
 let GS={
   board:Array(9).fill(null),rows:[],cols:[],cur:"X",
-  scores:{X:0,O:0},  // series round wins
+  scores:{X:0,O:0},  
   used:new Set(),over:false,
-  drawOffer:null,     // "X" or "O" if one player offered draw
+  drawOffer:null,     
   round:1,
-  roundStarter:"X"   // who started the current round — used to re-start draws
+  roundStarter:"X"   
 }
-// ── RANDOM FIRST PLAYER ───────────────────────────────────────────────
-// Returns "X" or "O" with equal probability — used at the start of every round
+
 function randomStart(){ return Math.random() < 0.5 ? "X" : "O"; }
-// Returns who should start the NEXT round:
-//   draw  → same player who started this round (roundStarter)
-//   X won → O starts (loser starts)
-//   O won → X starts (loser starts)
+
 function nextRoundStarter(winnerP){
   if(winnerP==="draw") return GS.roundStarter;
   return winnerP==="X" ? "O" : "X";
 }
-// ── GAME MODE GLOBALS ─────────────────────────────────────────────────
+
 let GAME_MODE = "same";
 let P1_LABEL = "Player 1";
 let P2_LABEL = "Player 2";
@@ -35,15 +29,11 @@ let timerInterval=null;
 let timerLeft=TURN_TIME;
 let drawPending=false;
 
-// ── ELEMENT PREFIX HELPER ─────────────────────────────────────────────
-// Each game mode has its own screen with prefixed element IDs.
-// px() returns the right prefix so all DOM lookups hit the active screen.
 function px(){ return GAME_MODE==="bot" ? "bot-" : GAME_MODE==="room" ? "room-" : "same-"; }
 function el(id){ return document.getElementById(px()+id); }
-// Active game screen id
+
 function gameScreenId(){ return GAME_MODE==="bot" ? "game-bot" : GAME_MODE==="room" ? "game-room" : "game-same"; }
 
-// ── RENDER LABEL ─────────────────────────────────────────────────────────
 function mkLabel(cat,extra=""){
   const el=document.createElement("div");
   el.className="cl"+(extra?" "+extra:"");
@@ -63,23 +53,22 @@ function mkLabel(cat,extra=""){
   return el;
 }
 
-// ── RENDER GRID ────────────────────────────────────────────────────────────
 function renderGrid(){
   const gg=el("gg");
   const {board,rows,cols}=GS;
   gg.innerHTML="";
   const corner=document.createElement("div");
   corner.className="corner";
-  // Empty corner — no logo, no text
+  
   gg.appendChild(corner);
   cols.forEach(c=>gg.appendChild(mkLabel(c)));
 
-  // Determine if the local player can interact
+  
   const isMyTurn = GAME_MODE==="same"
     || (GAME_MODE==="bot" && GS.cur==="X")
     || (GAME_MODE==="room" && ((roomRole==="host" && GS.cur==="X") || (roomRole==="guest" && GS.cur==="O")));
 
-  // Toggle pointer-events / hover class on the grid wrapper
+  
   if(isMyTurn && !GS.over){
     gg.classList.remove("no-hover");
   } else {
@@ -111,7 +100,7 @@ function renderGrid(){
   }
 }
 function renderScore(){
-  // Pips
+  
   ["X","O"].forEach(p=>{
     const pipEl=el("pips-"+p.toLowerCase());
     if(!pipEl) return;
@@ -131,10 +120,10 @@ function renderScore(){
     else{ti.textContent=p2lbl+" — O";ti.className="ti ti-o";}
   }
   const timerLbl=el("timer-lbl"); if(timerLbl) timerLbl.textContent=(GS.cur==="X"?p1lbl:p2lbl)+" TURN";
-  // Update scoreboard names
+  
   const p1el=el("name-x"); if(p1el) p1el.textContent=p1lbl;
   const p2el=el("name-o"); if(p2el) p2el.textContent=p2lbl;
-  // Button visibility
+  
   const isMyTurn = GAME_MODE!=="room" || (roomRole==="host" ? GS.cur==="X" : GS.cur==="O");
   const isBotTurn = GAME_MODE==="bot" && GS.cur==="O";
   const skipBtn = el("skip-btn");
@@ -142,14 +131,14 @@ function renderScore(){
   if(skipBtn) skipBtn.style.visibility = (isBotTurn || !isMyTurn) ? "hidden" : "visible";
   if(drawBtn){
     drawBtn.style.visibility = (isBotTurn || !isMyTurn) ? "hidden" : "visible";
-    // Always reset label when draw is no longer pending
+    
     if(!drawPending){
       drawBtn.textContent="🤝 Offer Draw";
       drawBtn.style.borderColor="";
       drawBtn.style.color="";
     }
   }
-  // Grid turn class
+  
   const gw=el("gg");
   if(gw){gw.classList.toggle("turn-x",GS.cur==="X");gw.classList.toggle("turn-o",GS.cur==="O");}
 }
@@ -160,7 +149,6 @@ function renderUsed(){
   ub.innerHTML="Used: "+[...GS.used].map(d=>`<span class="ut">${d}</span>`).join("");
 }
 
-// ── MODAL ─────────────────────────────────────────────────────────────────
 function openM(idx){
   if(GS.over)return;
   if(GAME_MODE==="room"){
@@ -176,12 +164,12 @@ function openM(idx){
   const pName=isP1?P1_LABEL:P2_LABEL;
   const rl=GS.rows[r].label.replace(/\n/g," ");
   const cl2=GS.cols[c].label.replace(/\n/g," ");
-  // Player-aware header background
+  
   const mh=document.getElementById("mttl");
   mh.textContent=`${pName} — NAME A DRIVER`;
   mh.style.background=`linear-gradient(90deg,${pGrad},transparent)`;
   mh.style.color=pColor;
-  // Player-aware input border on focus
+  
   const di=document.getElementById("di");
   di.style.setProperty("--player-color", pColor);
   di.className="di player-di";
@@ -203,7 +191,7 @@ document.getElementById("di").addEventListener("input",function(){
   suggEl.style.display="block";
   suggEl.innerHTML=hits.map(d=>{
     const esc=d.name.replace(/'/g,"\\'");
-    // Highlight matched portion in bold
+    
     const normName=normalize(d.name);
     const idx=normName.indexOf(q);
     const highlighted=d.name.slice(0,idx)+'<strong>'+d.name.slice(idx,idx+q.length)+'</strong>'+d.name.slice(idx+q.length);
@@ -226,13 +214,13 @@ function submitD(){
   }
   submitWith(drv);
 }
-// Check that all remaining empty cells can be completed with distinct unused drivers
+
 function canCompleteBoard(board, placingIdx, usedAfter, rows, cols){
-  // Build cells: for each empty cell (excluding the one being placed), find available drivers
+  
   var emptyCells=[];
   for(var i=0;i<9;i++){
-    if(board[i]!==null) continue; // already filled
-    if(i===placingIdx) continue;  // cell being placed right now
+    if(board[i]!==null) continue; 
+    if(i===placingIdx) continue;  
     var ri=Math.floor(i/3), ci=i%3;
     var rc=rows[ri], cc=cols[ci];
     var drivers=[];
@@ -242,12 +230,12 @@ function canCompleteBoard(board, placingIdx, usedAfter, rows, cols){
     }
     emptyCells.push({cell:i, drivers:drivers});
   }
-  if(emptyCells.length===0) return true; // no empty cells left
-  // Check each cell has at least 1 candidate
+  if(emptyCells.length===0) return true; 
+  
   for(var j=0;j<emptyCells.length;j++){
     if(emptyCells[j].drivers.length===0) return false;
   }
-  // Run bipartite matching on remaining cells
+  
   var numCells=emptyCells.length;
   var matchDriver={};
   function augment(ci,seen){
@@ -268,7 +256,7 @@ function submitWith(drv){
   const idx=selIdx;
   if(idx===null||idx===undefined){return;}
   const r=Math.floor(idx/3),c=idx%3;
-  // Wrong answer → flash cell, pass turn
+  
   if(GS.used.has(drv.name)){
     document.getElementById("err").textContent="❌ Already used — turn passes!";
     setTimeout(()=>{closeM();passTurn("already used");},900);
@@ -284,7 +272,7 @@ function submitWith(drv){
     setTimeout(()=>{closeM();passTurn("wrong answer");},900);
     return;
   }
-  // Check: placing this driver must not leave any remaining empty cell unsolvable
+  
   const usedAfter=new Set(GS.used);
   usedAfter.add(drv.name);
   if(!canCompleteBoard(GS.board,idx,usedAfter,GS.rows,GS.cols)){
@@ -292,11 +280,11 @@ function submitWith(drv){
     setTimeout(()=>{closeM();passTurn("wrong answer");},900);
     return;
   }
-  // Correct!
+  
   GS.board[idx]={p:GS.cur,drv:drv.name};
   GS.used.add(drv.name);
-  drawPending=false; // cancel any pending draw offer
-  // Room mode: broadcast move
+  drawPending=false; 
+  
   if(GAME_MODE==="room"){
     broadcastMove({type:"place", cell:idx, driver:drv.name});
   }
@@ -324,7 +312,7 @@ function passTurn(reason){
   GS.cur=GS.cur==="X"?"O":"X";
   renderGrid();
   renderScore();
-  // Only broadcast if this is a LOCAL pass in room mode, not a remote skip or bot skip
+  
   if(GAME_MODE==="room" && reason!=="remote skip") broadcastMove({type:"skip"});
   resetTimer();
   if(GAME_MODE==="bot") setTimeout(maybeBotTurn,100);
@@ -363,7 +351,7 @@ function showResult(w){
   clearTimeout(resCountdownTimer);
   clearInterval(cdInterval); cdInterval=null;
 
-  // In room mode, only the HOST drives the countdown — guest waits for broadcast
+  
   if(GAME_MODE==="room" && roomRole==="guest") return;
 
   const cdEl=document.getElementById("res-countdown");
@@ -378,13 +366,13 @@ function showResult(w){
       const colIdxs=cols.map(c=>CATS.findIndex(ca=>ca.id===c.id));
       const grid={rows:rowIdxs,cols:colIdxs};
       if(isSeries){
-        // New series = fresh random start for both players
+        
         const seriesFp=randomStart();
         broadcastMove({type:"new-series", grid, firstPlayer: seriesFp});
         GS.scores={X:0,O:0};GS.round=1;
         newRoundBoard({rows:rowIdxs,cols:colIdxs}, seriesFp);
       } else {
-        // Next round = loser starts
+        
         broadcastMove({type:"next-round", grid, firstPlayer: fp});
         GS.round++;
         newRoundBoard({rows:rowIdxs,cols:colIdxs}, fp);
@@ -395,11 +383,11 @@ function showResult(w){
   }
 
   if(w.p==="draw"){
-    // Draw: no board reveal — just wait 4s on the result screen then advance
+    
     cdEl.textContent="";
     resCountdownTimer=setTimeout(advanceRound, 4000);
   } else {
-    // Win: show 5s countdown, reveal board for 5s, then advance
+    
     let secs=5;
     cdEl.textContent="Board visible in "+secs+"s…";
     cdInterval=setInterval(()=>{
@@ -415,14 +403,13 @@ function showResult(w){
   }
 }
 
-// ── GAME CONTROL ────────────────────────────────────────────────────────────
 function startGame(){
-  // Full new series
+  
   GS.scores={X:0,O:0};
   GS.round=1;
   newRoundBoard();
 }
-// ── GAME MODE ENTRY POINTS ────────────────────────────────────────────
+
 function startSameScreen(){
   GAME_MODE="same";P1_LABEL="Player 1";P2_LABEL="Player 2";
   removeBotBadge();
@@ -436,23 +423,23 @@ function startVsBot(){
   showS("matchmaking");
 
   const totalSecs = 120;
-  // 99% chance: found between 10–30s; 1% chance: 30–120s
+  
   const foundAt = Math.random() < 0.99
-    ? 10 + Math.floor(Math.random() * 21)   // 10–30s
-    : 30 + Math.floor(Math.random() * 91);  // 30–120s
+    ? 10 + Math.floor(Math.random() * 21)   
+    : 30 + Math.floor(Math.random() * 91);  
   let elapsed = 0;
-  const CIRC = 2 * Math.PI * 46; // r=46 → circumference ≈ 289.03
+  const CIRC = 2 * Math.PI * 46; 
 
   const ring = document.getElementById("mm-ring");
   const timerEl = document.getElementById("mm-timer");
   const statusEl = document.getElementById("mm-status");
   const foundEl = document.getElementById("mm-found");
 
-  // Reset UI — ring starts empty, timer at 0:00
+  
   statusEl.style.display = "";
   foundEl.style.display = "none";
   ring.style.stroke = "var(--green)";
-  ring.style.strokeDashoffset = String(CIRC); // fully empty
+  ring.style.strokeDashoffset = String(CIRC); 
   timerEl.style.color = "var(--t1)";
   timerEl.textContent = "0:00";
 
@@ -465,7 +452,7 @@ function startVsBot(){
     const secs = elapsed % 60;
     timerEl.textContent = mins + ":" + (secs < 10 ? "0" : "") + secs;
 
-    // Ring fills as time increases
+    
     const pct = elapsed / totalSecs;
     ring.style.strokeDashoffset = String(CIRC * (1 - pct));
 
@@ -503,7 +490,7 @@ function addBotBadge(){
 function nextRound(fp){
   GS.round++;
   if(_cpick._isCustom){
-    // Custom game: save next starter then go back to picker
+    
     _cpick.nextStarter = fp || null;
     cpickNewRound();
   } else {
@@ -514,15 +501,15 @@ function newSeries(){
   GS.scores={X:0,O:0};
   GS.round=1;
   if(_cpick._isCustom){
-    _cpick.nextStarter = null; // new series = fresh random start
+    _cpick.nextStarter = null; 
     cpickNewRound();
   } else {
-    newRoundBoard(); // no fp → randomStart() inside newRoundBoard
+    newRoundBoard(); 
   }
 }
 function cpickNewRound(){
-  cpickStopTimer(); // stop any running timer before reset
-  // Reset picks but keep scores and round counter
+  cpickStopTimer(); 
+  
   _cpick.rows=[null,null,null];
   _cpick.cols=[null,null,null];
   _cpick.tab='team';
@@ -551,7 +538,7 @@ function newRoundBoard(prebuiltGrid, firstPlayer){
   GS.drawOffer=null;drawPending=false;
   clearTimeout(drawCancelTimer); drawCancelTimer=null;
   clearResultCountdown();
-  // In room mode, don't push a new history entry — stay on /play-with-a-friend
+  
   showS("game", GAME_MODE!=="room");
   renderGrid();renderScore();renderUsed();
   resetTimer();
@@ -575,20 +562,20 @@ function confirmQuitYes(){
   if(ov) ov.style.display = "none";
   goHome();
 }
-// ── TIMER ────────────────────────────────────────────────────────────────
-const CIRC = 2*Math.PI*22; // circumference of r=22
+
+const CIRC = 2*Math.PI*22; 
 function startTimer(){
   stopTimer();
   timerLeft=TURN_TIME;
   updateTimerUI();
-  // In room mode, guest never runs the timer — host drives it
+  
   if(GAME_MODE==="room" && roomRole==="guest") return;
-  // Broadcast turn-reset to guest so their display syncs immediately
+  
   if(GAME_MODE==="room") broadcastMove({type:"turn-reset"});
   timerInterval=setInterval(()=>{
     timerLeft--;
     updateTimerUI();
-    // Broadcast tick to guest every second
+    
     if(GAME_MODE==="room") broadcastMove({type:"tick", t:timerLeft});
     if(timerLeft<=0){
       stopTimer();
@@ -602,7 +589,7 @@ function startTimer(){
         }
         GS.cur=GS.cur==="X"?"O":"X";
         renderScore();
-        // Broadcast the timeout-triggered turn change to guest
+        
         if(GAME_MODE==="room") broadcastMove({type:"skip"});
         resetTimer();
         if(GAME_MODE==="bot") setTimeout(maybeBotTurn,100);
@@ -612,7 +599,7 @@ function startTimer(){
 }
 function stopTimer(){clearInterval(timerInterval);timerInterval=null;}
 function resetTimer(){
-  // Guest never drives the timer — host broadcasts ticks
+  
   if(GAME_MODE==="room" && roomRole==="guest") return;
   if(!GS.over) startTimer();
 }
@@ -633,7 +620,6 @@ function flashTimeUp(){
   if(n){n.textContent="⏱";n.style.color="#E10600";}
 }
 
-// ── SKIP & DRAW ───────────────────────────────────────────────────────────
 function skipTurn(){
   if(GS.over)return;
   if(GAME_MODE==="room"){
@@ -641,9 +627,9 @@ function skipTurn(){
     if(!myTurn) return;
   }
   if(document.getElementById("mov").classList.contains("on"))closeM();
-  // passTurn handles the broadcast in room mode
+  
   passTurn("skip");
-  // Brief visual feedback
+  
   const ti=el("ti");
   if(ti){ ti.classList.add("flash"); setTimeout(()=>ti.classList.remove("flash"),500); }
 }
@@ -652,7 +638,7 @@ let drawCancelTimer = null;
 function offerDraw(){
   if(GS.over)return;
   if(drawPending){
-    // Both agreed — it's a draw
+    
     drawPending=false;
     clearTimeout(drawCancelTimer);
     stopTimer();
@@ -666,13 +652,13 @@ function offerDraw(){
   btn.textContent="✅ Accept Draw?";
   btn.style.borderColor="var(--gold)";
   btn.style.color="var(--gold)";
-  // Pass turn so other player can accept
+  
   GS.cur=GS.cur==="X"?"O":"X";
   renderScore();
   resetTimer();
-  // In room mode: tell opponent a draw was offered
+  
   if(GAME_MODE==="room") broadcastMove({type:"draw-offer"});
-  // Auto-cancel after one full turn if not accepted
+  
   clearTimeout(drawCancelTimer);
   drawCancelTimer=setTimeout(()=>{
     if(drawPending){
@@ -684,7 +670,6 @@ function offerDraw(){
   },TURN_TIME*1000+500);
 }
 
-// ── SCREEN ROUTING ───────────────────────────────────────────────────
 const SCREEN_TITLES = {
   "home":         "Lights Out & Toe Away",
   "howto":        "How to Play — Lights Out & Toe Away",
@@ -694,7 +679,6 @@ const SCREEN_TITLES = {
   "custompicker": "Custom Game — Lights Out & Toe Away",
 };
 
-// Map screen IDs to clean URL paths
 function screenPath(id, resolvedId){
   if(id==="howto")                                  return "/lights-out-and-toe-away/how-to-play";
   if(id==="matchmaking")                            return "/lights-out-and-toe-away/play-online";
@@ -711,7 +695,7 @@ function showS(id, pushHistory=true){
   document.querySelectorAll(".scr").forEach(s=>{ s.classList.remove("on"); s.style.display=""; });
   const target=document.getElementById(resolvedId);
   if(target){ target.classList.add("on"); }
-  // Red gradient on all pages except home
+  
   document.body.classList.toggle("show-bg", resolvedId !== "home");
   const footer=document.getElementById("info-footer");
   if(footer){
@@ -734,7 +718,7 @@ function showS(id, pushHistory=true){
 window.addEventListener("popstate", function(e){
   const id = (e.state && e.state.screen) || "home";
   const isGameScreen = id==="game-same"||id==="game-bot"||id==="game-room";
-  // Run cleanup when returning to home, any game screen, or custom picker
+  
   if(id==="home" || isGameScreen || id==="custompicker"){
     stopTimer();
     stopHeartbeat();
@@ -747,7 +731,7 @@ window.addEventListener("popstate", function(e){
     const qov=document.getElementById("quit-overlay"); if(qov) qov.style.display="none";
     clearInterval(ROOM_POLL);
     cpickStopTimer();
-    // Reset state BEFORE closing connection to prevent disconnect overlay firing
+    
     const prevMode=GAME_MODE;
     GAME_MODE="same"; ROOM_CODE=""; roomRole=""; drawPending=false; selIdx=null;
     if(prevMode==="room" && _conn && _conn.open){ try{ _conn.send({type:"bye"}); }catch(e){} }
@@ -755,20 +739,16 @@ window.addEventListener("popstate", function(e){
     if(connToClose) connToClose.close();
     if(_peer && !_peer.destroyed){ _peer.destroy(); _peer=null; }
   }
-  // Use showS(id, false) — properly updates show-bg, footer, screen visibility
-  // without pushing a new history entry
+  
+  
   showS(id, false);
-  // Update page title from map
+  
   document.title = SCREEN_TITLES[id] || "Lights Out & Toe Away";
 });
 
-
-
-// ── Safe localStorage helpers (artifact-iframe compatible) ───────────
 function safeLS_set(key, val){ try{ localStorage.setItem(key,val); }catch(e){} }
-function safeLS_get(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }// ═══════════════════════════════════════════════════════════════════════
-// BOT AI  (medium difficulty)
-// ═══════════════════════════════════════════════════════════════════════
+function safeLS_get(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+
 let botThinkTimer = null;
 
 function maybeBotTurn(){
@@ -776,37 +756,37 @@ function maybeBotTurn(){
   if(GS.over) return;
   if(GS.cur !== "O") return;
   clearTimeout(botThinkTimer);
-  botThinkTimer = setTimeout(doBotMove, 200); // small delay then doBotMove schedules its own timing
+  botThinkTimer = setTimeout(doBotMove, 200); 
 }
 
 function doBotMove(){
   if(GS.over || GS.cur !== "O") return;
 
-  // Helper: random ms between two second values
+  
   function randMs(secMin, secMax){
     return (secMin + Math.random()*(secMax-secMin)) * 1000;
   }
 
-  // If human offered a draw → 50% accept, 50% ignore (both after 20-40s delay)
+  
   if(drawPending){
     const drawDelay = randMs(20, 40);
     if(Math.random() < 0.50){
       setTimeout(()=>{ if(GS.over||GS.cur!=="O")return; offerDraw(); }, drawDelay);
     }
-    // else: ignore draw offer, let it auto-cancel, then play normally below
-    // Schedule normal move too (will be ignored if draw accepted first)
-    // Actually just return here — timer will fire passTurn at 60s if nothing happens
+    
+    
+    
     return;
   }
 
-  // ~15% chance: skip — but only after 40-60 seconds have elapsed
+  
   if(Math.random() < 0.15){
     const skipDelay = randMs(40, 58);
     setTimeout(()=>{ if(GS.over||GS.cur!=="O")return; passTurn("bot skip"); }, skipDelay);
     return;
   }
 
-  // Normal move: play between 20-40 seconds
+  
   const moveDelay = randMs(20, 40);
   setTimeout(()=>{
     if(GS.over || GS.cur !== "O") return;
@@ -818,7 +798,7 @@ function doBotMove(){
     const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
     function bestCell(){
-      // Only try to win ~55% of the time
+      
       if(Math.random() < 0.55){
         for(const [a,b,c] of wins){
           const cells=[a,b,c];
@@ -827,7 +807,7 @@ function doBotMove(){
           if(mine===2&&empty.length===1&&emptyCells.includes(empty[0])) return empty[0];
         }
       }
-      // Only block ~60% of the time
+      
       if(Math.random() < 0.60){
         for(const [a,b,c] of wins){
           const cells=[a,b,c];
@@ -846,14 +826,14 @@ function doBotMove(){
     const candidates=DB.filter(d=>!GS.used.has(d.name)&&rowCat.check(d)&&colCat.check(d));
     if(!candidates.length){ passTurn("bot skip"); return; }
 
-    // Pick a safe candidate that doesn't block other cells
+    
     const shuffled=candidates.slice().sort(()=>Math.random()-.5);
     let chosen=null;
     for(const drv of shuffled){
       const usedAfter=new Set(GS.used); usedAfter.add(drv.name);
       if(canCompleteBoard(GS.board,cellIdx,usedAfter,GS.rows,GS.cols)){ chosen=drv; break; }
     }
-    if(!chosen) chosen=shuffled[0]; // fallback: pick any if all block (shouldn't happen with valid grid)
+    if(!chosen) chosen=shuffled[0]; 
     selIdx=cellIdx;
     GS.board[cellIdx]={p:"O",drv:chosen.name};
     GS.used.add(chosen.name);
@@ -865,33 +845,21 @@ function doBotMove(){
     }
     const w=checkWin(GS.board);
     if(w){ renderGrid();renderUsed();stopTimer();GS.over=true;if(w.p!=="draw")GS.scores[w.p]++;renderScore();setTimeout(()=>showResult(w),400); return; }
-    selIdx=null; // clear so passTurn doesn't flash the bot's cell on next human mistake
-    GS.cur="X"; // swap turn BEFORE renderGrid so isMyTurn is correct
+    selIdx=null; 
+    GS.cur="X"; 
     renderGrid(); renderUsed(); renderScore(); resetTimer();
   }, moveDelay);
 }
 
-// Block cell clicks during bot's turn
 document.addEventListener("click",function(e){
   if(GAME_MODE==="bot"&&GS.cur==="O"&&!GS.over){
     if(e.target.closest(".cell")){ e.stopImmediatePropagation(); e.preventDefault(); }
   }
 },true);
 
-// ═══════════════════════════════════════════════════════════════════════
-// PRIVATE ROOM SYSTEM  —  WebRTC via PeerJS (true peer-to-peer, no DB)
-// ═══════════════════════════════════════════════════════════════════════
-// How it works:
-//   • PeerJS gives each browser a unique Peer ID using a free public
-//     signaling server (just for the handshake — game data is P2P).
-//   • The HOST's Peer ID *is* the room code players share.
-//   • Once connected, all moves travel directly browser↔browser.
-//   • No database, no backend, nothing stored anywhere.
+let _peer = null;       
+let _conn = null;       
 
-let _peer = null;       // our PeerJS Peer instance
-let _conn = null;       // the active DataConnection to the other player
-
-// ── Load PeerJS from CDN if not already present ───────────────────────
 function loadPeerJS(cb){
   if(window.Peer){ cb(); return; }
   const s=document.createElement("script");
@@ -901,7 +869,6 @@ function loadPeerJS(cb){
   document.head.appendChild(s);
 }
 
-// ── Shared UI helpers ─────────────────────────────────────────────────
 function generateQR(text,container){
   container.innerHTML="";
   function makeQR(){
@@ -920,9 +887,8 @@ function getRoomURL(code){
   return window.location.origin + "/lights-out-and-toe-away/?room=" + code;
 }
 
-// ── Wire up an open DataConnection for both host & guest ──────────────
 function showDisconnect(msg){
-  // Only show if we're actually in an active game or waiting room, not already on home
+  
   const activeScreens = ["game-room","roomcreated","roomlobby"];
   const currentlyVisible = activeScreens.some(id=>{
     const el=document.getElementById(id);
@@ -940,7 +906,7 @@ function showDisconnect(msg){
 
 function attachConn(conn){
   _conn=conn;
-  let roomFull = false; // flag to suppress close handler on intentional room-full close
+  let roomFull = false; 
   conn.on("data", msg => {
     if(msg.type==="start")          { startRoomGameAsGuest(msg.grid, msg.firstPlayer); }
     else if(msg.type==="bye")       { showDisconnect("Your friend has disconnected."); }
@@ -955,7 +921,7 @@ function attachConn(conn){
     else                            { applyRoomMove(msg); }
   });
   conn.on("close", ()=>{
-    if(roomFull) return; // intentional close — don't show disconnect overlay
+    if(roomFull) return; 
     if(GAME_MODE==="room"){
       showDisconnect("Your friend has disconnected.");
     }
@@ -963,17 +929,15 @@ function attachConn(conn){
   conn.on("error", e=>console.warn("conn error",e));
 }
 
-// ── Broadcast a move to the other player ─────────────────────────────
 function broadcastMove(move){
   if(_conn && _conn.open) _conn.send(move);
 }
 
-// ── CREATE ROOM (host) ────────────────────────────────────────────────
 function createRoom(){
   loadPeerJS(()=>{
     GAME_MODE="room"; roomRole="host"; P1_LABEL="You"; P2_LABEL="Friend";
 
-    // Show a "connecting…" state while PeerJS registers us
+    
     document.getElementById("room-code-display").textContent="…";
     document.getElementById("room-waiting").style.display="flex";
     document.getElementById("room-joined-msg").style.display="none";
@@ -981,7 +945,7 @@ function createRoom(){
     showS("roomcreated");
 
     if(_peer && !_peer.destroyed) _peer.destroy();
-    // Generate a short code and use it directly as the PeerJS peer ID
+    
     const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     const shortCode=Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("");
     ROOM_CODE = shortCode;
@@ -995,7 +959,7 @@ function createRoom(){
     });
 
     _peer.on("connection", conn => {
-      // If any guest connection already exists, reject newcomers
+      
       if(_conn){
         conn.on("open", ()=>{ conn.send({type:"room-full"}); conn.close(); });
         return;
@@ -1015,7 +979,6 @@ function createRoom(){
   });
 }
 
-// ── JOIN ROOM (guest) ─────────────────────────────────────────────────
 function joinRoom(){
   const code=document.getElementById("join-code-input").value.trim();
   document.getElementById("lobby-err").textContent="";
@@ -1053,7 +1016,7 @@ function joinRoom(){
         document.getElementById("lobby-err").textContent="Room not found. Check the code and try again.";
       });
 
-      // Timeout if no connection in 8s
+      
       setTimeout(()=>{
         if(!_conn){
           document.getElementById("lobby-err").style.color="var(--red)";
@@ -1069,7 +1032,6 @@ function joinRoom(){
   });
 }
 
-// ── START GAME (host presses Start) ──────────────────────────────────
 function startRoomGame(){
   const {rows,cols}=buildGrid();
   const rowIdxs=rows.map(r=>CATS.findIndex(c=>c.id===r.id));
@@ -1085,7 +1047,6 @@ function startRoomGameAsGuest(grid, firstPlayer){
   launchRoomGame(rows, cols, firstPlayer);
 }
 
-// ── LAUNCH GAME (both sides) ──────────────────────────────────────────
 function launchRoomGame(rows,cols,firstPlayer){
   GS.scores={X:0,O:0};GS.round=1;
   GS.board=Array(9).fill(null);GS.rows=rows;GS.cols=cols;
@@ -1101,7 +1062,6 @@ function launchRoomGame(rows,cols,firstPlayer){
   if(GAME_MODE==="room") startHeartbeat();
 }
 
-// ── APPLY AN INCOMING MOVE ────────────────────────────────────────────
 function applyRoomMove(move){
   if(move.type==="place"){
     const drv=DB.find(d=>d.name===move.driver);
@@ -1112,20 +1072,20 @@ function applyRoomMove(move){
         renderGrid();renderUsed();
         stopTimer();GS.over=true;if(w.p!=="draw")GS.scores[w.p]++;renderScore();setTimeout(()=>showResult(w),400);return;
       }
-      // Swap turn FIRST so renderGrid builds click listeners for the correct player
+      
       GS.cur=GS.cur==="X"?"O":"X";
       renderGrid();renderUsed();renderScore();
-      // Guest does not run the timer — host drives it via tick messages
+      
       if(roomRole==="host") resetTimer();
     }
   } else if(move.type==="skip"){
     passTurn("remote skip");
   } else if(move.type==="tick"){
-    // Host's authoritative timer tick — guest just mirrors the UI
+    
     timerLeft=move.t;
     updateTimerUI();
   } else if(move.type==="turn-reset"){
-    // Host signals a new turn started — guest resets their timer display
+    
     timerLeft=TURN_TIME;
     updateTimerUI();
   } else if(move.type==="draw-offer"){
@@ -1138,7 +1098,7 @@ function applyRoomMove(move){
       btn.style.color="var(--gold)";
     }
     renderScore();
-    // No resetTimer here — the offerer's startTimer already sent a turn-reset tick
+    
   } else if(move.type==="draw-accept"){
     drawPending=false;
     stopTimer();GS.over=true;
@@ -1148,11 +1108,11 @@ function applyRoomMove(move){
     const btn=el("draw-btn");
     if(btn){btn.textContent="🤝 Offer Draw";btn.style.borderColor="";btn.style.color="";}
   } else if(move.type==="ping"){
-    // Guest receives ping from host — respond and record liveness
+    
     _lastPing = Date.now();
     broadcastMove({type:"pong"});
   } else if(move.type==="pong"){
-    // Host receives pong — connection is alive, nothing to do
+    
   } else if(move.type==="next-round"){
     document.getElementById("res").classList.remove("on");
     document.getElementById("res-countdown").textContent="";
@@ -1166,7 +1126,6 @@ function applyRoomMove(move){
   }
 }
 
-// ── COPY LINK ─────────────────────────────────────────────────────────
 function copyRoomLink(){
   const val=document.getElementById("room-link-input").value;
   navigator.clipboard.writeText(val).then(()=>{
@@ -1177,7 +1136,6 @@ function copyRoomLink(){
   }).catch(()=>{ document.getElementById("room-link-input").select(); document.execCommand("copy"); });
 }
 
-// ── LEAVE ROOM ────────────────────────────────────────────────────────
 function leaveRoom(){
   clearInterval(ROOM_POLL);
   if(GAME_MODE==="room" && _conn && _conn.open) broadcastMove({type:"bye"});
@@ -1188,9 +1146,8 @@ function leaveRoom(){
   showS("home");
 }
 
-// ── GAME MODE ENTRY (same tab, path routing) ─────────────────────────
 function openGameTab(mode){
-  // No longer opens a new tab — navigates in same tab with clean path
+  
   if(mode==="same")       { startSameScreen(); }
   else if(mode==="bot")   { startVsBot(); }
   else if(mode==="room")  { showS("roomlobby"); }
@@ -1199,31 +1156,31 @@ function openGameTab(mode){
 
 function handleLogoClick(){
   const path = window.location.pathname;
-  // Pe pagina home a jocului → du-te la hub
+  
   if(path === "/lights-out-and-toe-away/" || path === "/lights-out-and-toe-away"){
     window.location.href = "/";
   } else {
-    // Pe orice alta pagina → pagina principala a jocului
+    
     goHome();
   }
 }
 
 function goHome(){
   stopTimer();
-  cpickStopTimer(); // fix: stop custom picker timer if active
+  cpickStopTimer(); 
   clearTimeout(botThinkTimer); botThinkTimer=null;
-  _cpick._isCustom = false; // reset custom flag
+  _cpick._isCustom = false; 
   clearTimeout(resCountdownTimer); resCountdownTimer=null;
   clearInterval(cdInterval); cdInterval=null;
   clearTimeout(drawCancelTimer); drawCancelTimer=null;
   clearInterval(mmInterval); mmInterval=null;
   clearTimeout(mmFoundTimer); mmFoundTimer=null;
   stopHeartbeat();
-  // Hide disconnect overlay if visible
+  
   const ov=document.getElementById("disconnect-overlay"); if(ov) ov.style.display="none";
   const qov=document.getElementById("quit-overlay"); if(qov) qov.style.display="none";
   if(GAME_MODE==="room" && _conn && _conn.open) broadcastMove({type:"bye"});
-  // Reset mode BEFORE closing connection so the async close event doesn't trigger showDisconnect
+  
   GAME_MODE="same"; ROOM_CODE=""; roomRole=""; drawPending=false; selIdx=null;
   const connToClose=_conn; _conn=null;
   if(connToClose) connToClose.close();
@@ -1231,7 +1188,6 @@ function goHome(){
   showS("home");
 }
 
-// ── AUTO-JOIN FROM URL & INITIAL HISTORY STATE ───────────────────────
 window.addEventListener("load",function(){
   const path = window.location.pathname.replace(/\/$/, "") || "/";
   const params = new URLSearchParams(window.location.search);
@@ -1239,7 +1195,7 @@ window.addEventListener("load",function(){
 
   if(code){
     document.body.classList.add("show-bg");
-    // Joining via shared room link
+    
     history.replaceState({screen:"roomlobby"}, "", "/lights-out-and-toe-away/play-with-a-friend");
     document.title = "Play with a Friend — Lights Out & Toe Away";
     showS("roomlobby", false);
@@ -1272,14 +1228,13 @@ window.addEventListener("load",function(){
     document.title = "Custom Game — Lights Out & Toe Away";
     startCustomPicker();
   } else {
-    // Home
+    
     history.replaceState({screen:"home"}, "", "/lights-out-and-toe-away/");
     document.title = "Lights Out & Toe Away";
     showS("home", false);
   }
 });
 
-// Bot move flash style + no-hover rule
 const _bs=document.createElement("style");
 _bs.textContent=`
 .bot-move{animation:bpulse .5s ease-out;}
@@ -1299,9 +1254,9 @@ function startHeartbeat(){
   _lastPing = Date.now();
   _heartbeatInterval = setInterval(()=>{
     if(!_conn || !_conn.open || GAME_MODE!=="room") { clearInterval(_heartbeatInterval); return; }
-    // Host sends ping every 3s; guest responds with pong
+    
     if(roomRole==="host") broadcastMove({type:"ping"});
-    // If guest hasn't received a ping in 8s, consider host gone
+    
     if(roomRole==="guest" && Date.now()-_lastPing > 8000){
       clearInterval(_heartbeatInterval);
       showDisconnect("Your friend has disconnected.");
@@ -1314,28 +1269,27 @@ function stopHeartbeat(){
 }
 window.addEventListener("beforeunload", ()=>{
   if(GAME_MODE==="room" && _conn && _conn.open){
-    // Use sendBeacon-style sync send — broadcastMove may not fire before unload
+    
     try { _conn.send({type:"bye"}); } catch(e){}
   }
 });
 
-// ── CUSTOM GAME PICKER ────────────────────────────────────────────────────
 let _cpick = {
   rows: [null, null, null],
   cols: [null, null, null],
   tab: 'team',
   activeType: null,
   activeIdx: null,
-  turn: 0,           // 0..5, increments each pick; player = turn%2==0 ? P1 : P2
+  turn: 0,           
   timerInterval: null,
   timerLeft: 60,
-  nextStarter: null  // firstPlayer for next game round (null = randomize)
+  nextStarter: null  
 };
 
 function startCustomPicker(){
   GAME_MODE = "same";
   P1_LABEL = "Player 1"; P2_LABEL = "Player 2";
-  GS.scores={X:0,O:0}; GS.round=1; // reset series on fresh start
+  GS.scores={X:0,O:0}; GS.round=1; 
   _cpick = {rows:[null,null,null], cols:[null,null,null], tab:'team', activeType:null, activeIdx:null, turn:0, consecutiveSkips:0, timerInterval:null, timerLeft:60, _isCustom:true, nextStarter:null};
   showS('custompicker');
   cpickRenderVisualGrid();
@@ -1391,7 +1345,7 @@ function cpickUpdateTimerDisplay(t){
 }
 
 function cpickSkipTurn(){
-  // Time expired — pass turn to next player without placing anything
+  
   document.getElementById('cpick-panel').classList.remove('open');
   _cpick.activeType = null;
   _cpick.activeIdx = null;
@@ -1400,15 +1354,15 @@ function cpickSkipTurn(){
 
   var done = cpickPicksDone();
 
-  // If all 6 slots filled, start game
+  
   if(done >= 6){
     _cpick.consecutiveSkips = 0;
     setTimeout(function(){ cpickStartGame(); }, 350);
     return;
   }
 
-  // Safety: if both players have skipped 6 times total without picking anything,
-  // auto-fill remaining empty slots with random valid categories and start
+  
+  
   if(_cpick.consecutiveSkips >= 6){
     _cpick.consecutiveSkips = 0;
     cpickAutoFillAndStart();
@@ -1421,7 +1375,7 @@ function cpickSkipTurn(){
 }
 
 function cpickAutoFillAndStart(){
-  // Fill any remaining empty slots with random valid categories
+  
   var types = ['row','col'];
   for(var t=0;t<types.length;t++){
     var type = types[t];
@@ -1449,15 +1403,15 @@ function cpickAutoFillAndStart(){
   if(_cpick.rows.every(Boolean) && _cpick.cols.every(Boolean)){
     setTimeout(function(){ cpickStartGame(); }, 350);
   } else {
-    // Still can't fill — just start with what we have (cpickStartGame will validate)
+    
     setTimeout(function(){ cpickStartGame(); }, 350);
   }
 }
 
 function cpickOpenPanel(type, idx){
-  // Any empty slot is clickable on the current player's turn
+  
   var arr = type==='row' ? _cpick.rows : _cpick.cols;
-  if(arr[idx] !== null) return; // already filled — clicking opens to re-pick (handled as filled)
+  if(arr[idx] !== null) return; 
 
   cpickStopTimer();
   _cpick.activeType = type;
@@ -1499,8 +1453,6 @@ function cpickImgHtml(cat){
   return '<img class="cpick-card-img ' + cls + '" src="' + cat.img + '" alt=""/>';
 }
 
-
-// ── BIPARTITE MATCHING — verifies distinct driver assignment is possible ──
 function cpickCanAssign(filledRows, filledCols){
   var cells = [];
   for(var r=0;r<filledRows.length;r++){
@@ -1543,13 +1495,13 @@ function cpickRenderGrid(){
     var incompatible = false;
 
     if(!usedAnywhere && oppositeArr.length>0){
-      // Quick check: each cell must have >=2 drivers
+      
       for(var i=0;i<oppositeArr.length;i++){
         var opp=oppositeArr[i];
         var n=DB.filter(function(d){ try{ return cat.check(d)&&opp.check(d); }catch(e){ return false; } }).length;
         if(n<2){ incompatible=true; break; }
       }
-      // Full matching check: verify complete distinct assignment exists
+      
       if(!incompatible){
         var testRows=_cpick.activeType==='row'
           ? (function(){ var r=_cpick.rows.slice(); r[_cpick.activeIdx]=cat; return r.filter(Boolean); })()
@@ -1580,7 +1532,7 @@ function cpickSelect(catId){
   if(!cat) return;
   var arr = _cpick.activeType==='row' ? _cpick.rows : _cpick.cols;
   arr[_cpick.activeIdx] = cat;
-  _cpick.consecutiveSkips = 0; // reset skip counter on successful pick
+  _cpick.consecutiveSkips = 0; 
 
   document.getElementById('cpick-panel').classList.remove('open');
   _cpick.activeType = null;
@@ -1603,7 +1555,7 @@ function cpickRemove(type, idx, e){
   var arr = type==='row' ? _cpick.rows : _cpick.cols;
   if(!arr[idx]) return;
   arr[idx] = null;
-  // Decrement turn so the same player who placed it gets to re-pick
+  
   if(_cpick.turn > 0) _cpick.turn--;
   cpickRenderVisualGrid();
   cpickUpdateHeader();
@@ -1625,7 +1577,7 @@ function cpickRenderVisualGrid(){
 function cpickRenderSlotEl(el, cat, type, idx){
   var baseClass = type==='col' ? 'cl cpick-col-cell' : 'cl row-cl cpick-row-cell';
   if(!cat){
-    // All empty slots are clickable — player picks whichever they want
+    
     el.className = baseClass + ' empty cpick-active-slot';
     el.innerHTML = '<div class="cpick-slot-add"><span class="cpick-plus">+</span><div class="cpick-add-label">ADD</div></div>';
     el.onclick = function(){ cpickOpenPanel(type, idx); };
@@ -1640,7 +1592,7 @@ function cpickRenderSlotEl(el, cat, type, idx){
     else if(cat.img)                imgHtml = '<img class="cl-pt" src="' + cat.img + '" alt=""/>';
     else                            imgHtml = '<div class="cl-ic">' + (cat.icon||'?') + '</div>';
     el.innerHTML = imgHtml + '<div class="cl-tx">' + txt + '</div><span class="badge ' + badge + '">' + badgeTxt + '</span>';
-    el.onclick = null; // filled slots are not re-openable
+    el.onclick = null; 
   }
 }
 
@@ -1650,13 +1602,13 @@ function cpickStartGame(){
   var cols = _cpick.cols;
   if(!rows.every(Boolean)||!cols.every(Boolean)) return;
 
-  // Final safety: only block if a cell has ZERO valid drivers
+  
   for(var ri=0;ri<rows.length;ri++){
     for(var ci=0;ci<cols.length;ci++){
       var r = rows[ri]; var c = cols[ci];
       var n = DB.filter(function(d){ try{return r.check(d)&&c.check(d);}catch(e){return false;} }).length;
       if(n < 2){
-        // This cell has fewer than 2 drivers - roll back the more recently added of the two
+        
         rows[ri] = null;
         if(_cpick.turn >= 1) _cpick.turn -= 1; else _cpick.turn = 0;
         cpickRenderVisualGrid();
@@ -1672,8 +1624,8 @@ function cpickStartGame(){
   GS.board=Array(9).fill(null);
   GS.rows=rows; GS.cols=cols;
   GS.cur=(_cpick.nextStarter||randomStart()); GS.roundStarter=GS.cur; GS.used=new Set(); GS.over=false;
-  _cpick.nextStarter=null; // consumed
-  // Keep scores & round across custom game rounds; reset only on fresh start
+  _cpick.nextStarter=null; 
+  
   if(!_cpick._isCustom){
     GS.scores={X:0,O:0}; GS.round=1;
   }
